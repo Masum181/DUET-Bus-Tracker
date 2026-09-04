@@ -21,15 +21,8 @@ router = APIRouter(
 )
 
 @router.get("/dashboard", status_code=200)
-async def get_dashboard(db: Annotated[AsyncSession, Depends(get_db)]):
-    return {
-  "total_buses": 12,
-  "active_buses": 8,
-  "total_routes": 10,
-  "active_trips": 6,
-  "online_drivers": 7,
-  "students_tracking": 145
-}
+async def get_dashboard(db: Annotated[AsyncSession, Depends(get_db)], user: Annotated[User, Depends(get_current_user)], _: Annotated[User, Depends(require_role("admin"))]):
+    return await admin_service.get_dashboard(db)
 
 # =============================================================================
 #                             Bus Management

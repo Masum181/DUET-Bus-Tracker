@@ -5,7 +5,7 @@ from app.repositories import admin_repositories
 
 from app.schemas.base import BaseResponse, Meta
 
-from app.schemas.admin import BusDetailsSchema, CurrentLocationSchema, DriverDetailsSchema, TripDetailsSchema
+from app.schemas.admin import BusDetailsSchema, CurrentLocationSchema, DashboardResponse, DriverDetailsSchema, TripDetailsSchema, DashboardSchema, TripDetailsSchema, DriverListSchema,DriverDetailsSchema, RouteListDataSchema,RouteDetailsSchema,  BusListDataSchema, BusDetailsSchema, TripListDataSchema
 
 from app.websocket.manager import manager
 
@@ -20,6 +20,72 @@ def _response(status_code, success, message,lang='en', data=None):
         data=data,
         meta=Meta(request_id=None, timestamp=datetime.now(tz=timezone.utc))
     )
+
+def _map_trip(trip):
+    current_location = manager.get_last_bus_location(trip.trip_id) if trip.status == "running" else None
+    if current_location:
+        current_location = CurrentLocationSchema(latitude=current_location.lat, longitude=current_location.lng)
+    else:
+        current_location = None
+    return TripDetailsSchema( id=trip.id,trip_id=trip.trip_id,device_id=trip.device_id,app_version=trip.app_version,
+            started_at=trip.started_at,ended_at=trip.ended_at,status=trip.status,
+            route_id=trip.route_id,route_name=trip.route.name,
+            started_from=trip.route.stops[0].stop.name, destination=trip.route.stops[-1].stop.name,
+            driver_id=trip.driver_id,driver_name=trip.driver.full_name,
+            bus_id=trip.bus_id, bus_name=trip.bus.name,
+            current_location=current_location
+    )
+
+def _map_driver(driver):
+    return DriverDetailsSchema(
+        id=driver.id, username=driver.user.username, full_name=driver.full_name, status=driver.status, address=driver.address, license_plate=driver.license_plate,
+        license_plate_expiry=driver.license_plate_expiry, total_triped=driver.total_triped, joining_date=driver.created_at, emergency_contact_name=driver.emergency_contact_name, emergency_contact_phone=driver.emergency_contact_phone
+    )
+
+def _map_route(route):
+    return RouteDetailsSchema(
+        id=route.id, name=route.name, code=route.code, description=route.description, 
+        is_active=route.is_active, starting_point=route.stops[0].stop.name, 
+        ending_point=route.stops[-1].stop.name)
+
+async def _map_bus(db, bus):
+    trip = await admin_repositories.get_trip_by_bus_id(db, bus.id)
+
+    return BusDetailsSchema(
+        id=bus.id, name=bus.name, registration_number=bus.registration_number, capacity=bus.capacity, 
+        route_id=bus.route_id, is_active=bus.is_active, is_running=trip.status == "running" if trip else False,
+    )
+
+async def get_dashboard(db):
+    buses, total_buses = await admin_repositories.get_buses_for_dashboard(db)
+    routes, total_routes = await admin_repositories.get_routes_dashboard(db)
+    drivers, total_drivers = await admin_repositories.get_drivers(db, None)
+    trips, total_trips = await admin_repositories.get_trips(db, None)
+
+    trips_data = [_map_trip(trip) for trip in trips]
+    drivers_data = [_map_driver(driver) for driver in drivers]
+    routes_data = [_map_route(route) for route in routes]
+    buses_data = [await _map_bus(db, bus) for bus in buses]
+
+    return DashboardResponse(
+        status=status.HTTP_200_OK,
+        success=True,
+        lang='en',
+        message="Dashboard retrieved successfully.",
+        data=DashboardSchema(trips=TripListDataSchema(data=trips_data, total=total_trips), drivers=DriverListSchema(data=drivers_data, total=total_drivers), routes=RouteListDataSchema(data=routes_data, total=total_routes), buses=BusListDataSchema(data=buses_data, total=total_buses)),
+        meta=Meta(request_id=None, timestamp=datetime.now(tz=timezone.utc))
+    )
+
+
+
+
+
+
+
+    
+#===============================================================================
+#                             Bus Management
+#===============================================================================
 
 
 async def create_bus(payload, db):

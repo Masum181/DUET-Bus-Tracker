@@ -37,9 +37,15 @@ class DistanceUpdate(BaseModel):
     """Server -> one student: here's how far the bus is from you."""
     type: Literal["distance_update"] = "distance_update"
     trip_id: str|None = None
+    bus_id: int|None = None
+    bus_lat:float | None = None
+    bus_lng:float|None = None
+    bus_speed_kmh: Optional[float] = None
+    bus_heading: Optional[float] = None
+    bus_timestamp: datetime | None = None
+    
     distance_meters: float | None = None
     eta_seconds: Optional[float] = None
-    bus_timestamp: datetime | None = None
     student_timestamp: datetime | None = None
 
 class WSError(BaseModel):

@@ -11,13 +11,25 @@ from app.core.hashing import Hash
 from app.schemas.user import (
     User as UserSchema,
     ShowUser,
-    ResponseUser
+    ResponseUser,
+    UserUpdateSchema,
+    StudentUpdateData,
+    DriverUpdateData
 )
 
 from app.schemas.base import BaseResponse, Meta
 from app.core.context import get_request_id
 
 from app.enums.user_enums import DriverStatus
+
+def _response(status_code, success, message,lang='en', data=None):
+    return BaseResponse(status=status_code, success=success,message=message, lang='en', data=data,meta=Meta(request_id=None, timestamp=datetime.now(tz=timezone.utc)))
+
+def _get_update_data(schema):
+    return {
+        key:value for key, value in schema.model_dump().items() 
+        if value is not None
+    }
 
 async def create_new_user(db, payload):
     user = await user_repositories.get_user(db, email=payload.email)
@@ -101,6 +113,16 @@ async def create_new_student(db, payload):
         )
     )
 
+async def update_student(db, student_id, payload):
+    user = await user_repositories.get_user(db, student_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user_info = UserUpdateSchema.model_validate(payload)
+    student_info = StudentUpdateData.model_validate(payload)
+    await user_repositories.update_user(db, user.id, _get_update_data(user_info))
+    await user_repositories.update_student(db, student_id, _get_update_data(student_info))
+    return _response(status_code=status.HTTP_200_OK, success=True, message="User updated successfully")
+
 async def create_new_driver(db, payload):    
     user = await user_repositories.get_user(db, email=payload.email)
     if user:
@@ -147,6 +169,17 @@ async def create_new_driver(db, payload):
             timestamp = datetime.now(tz=timezone.utc)
         )
     )
+
+async def update_driver(db, driver_id, payload):
+    user = await user_repositories.get_user(db, driver_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user_info = UserUpdateSchema.model_validate(payload)
+    driver_info = DriverUpdateData.model_validate(payload)
+    await user_repositories.update_user(db, user.id, _get_update_data(user_info))
+    await user_repositories.update_driver(db, driver_id, _get_update_data(driver_info))
+    return _response(status_code=status.HTTP_200_OK, success=True, message="User updated successfully")
+
 
 async def create_new_session(db,request, user_id, refresh_token, expire):
     # Extract device info

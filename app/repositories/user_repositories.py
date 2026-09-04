@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy.orm import Session
-from app.repositories.base_repo import BaseGeneric, add_data
+from app.repositories.base_repo import BaseGeneric, add_data, base_update
 from app.models.user import User, UserSession, StudentInfo, DriverInfo
 
 
@@ -38,5 +38,9 @@ async def create_student_info(db, data):
 
 async def create_driver_info(db, data):
     await add_data(db, DriverInfo, data)
+
+async def update_user(db, user_id, data): await base_update(db, User, data, filters=[User.id == user_id])
+async def update_student(db, student_id, data): await base_update(db, StudentInfo, data, filters=[StudentInfo.id == student_id])
+async def update_driver(db, driver_id, data): await base_update(db, DriverInfo, data, filters=[DriverInfo.id == driver_id])
     
 

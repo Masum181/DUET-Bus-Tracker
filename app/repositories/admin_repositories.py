@@ -11,6 +11,12 @@ from app.enums.admin_enums import BusFilterStatus
 
 async def create_bus(db, data): return await add_data(db, Bus, data)
 
+async def get_buses_for_dashboard(db):
+    return await get_data_by_filter(db, Bus,is_first=False, filters=[Bus.is_active == True])
+
+async def get_trip_by_bus_id(db, bus_id):
+    return await get_data_by_filter(db, Trip, filters=[Trip.bus_id == bus_id])
+
 async def get_buses(db, payload):
     query = select(Bus).distinct()
 
@@ -162,6 +168,9 @@ async def get_routes(db, payload):
     items = await repo.paginate(filters=filters, order_by=[column.desc() if payload.sort_order == "desc" else column.asc()])
     return {"items": items, "total": await repo.count(filters=filters)}
 
+async def get_routes_dashboard(db):
+    return await get_data_by_filter(db, Route,is_first=False,filters=[Route.is_active==True], options=[selectinload(Route.stops).options(selectinload(RouteStop.stop))])
+
 async def get_route_details(db, route_id):
     return await get_data_by_filter(db, Route, filters=[Route.id == route_id], options=[selectinload(Route.stops).options(selectinload(RouteStop.stop))])
 
@@ -198,13 +207,25 @@ async def update_driver_details(db, driver_id, payload):
     return await base_update(db, DriverInfo, payload, filters=[DriverInfo.id == driver_id])
 
 async def get_drivers(db, status):
-    return await get_data_by_filter(db, DriverInfo,is_first=False, filters=[DriverInfo.status == status], options=[selectinload(DriverInfo.user)])
+    filters = []
+    if status is not None: filters.append(DriverInfo.status == status)
+    return await get_data_by_filter(db, DriverInfo,is_first=False, filters=filters, options=[selectinload(DriverInfo.user)])
 
 # =============================================================================
 #                             Trip Management
 # =============================================================================
 async def get_trips(db, status):
-    return await get_data_by_filter(db, Trip, filters=[Trip.status == status])
+    filters = []
+    if status is not None:
+        filters.append(Trip.status == status)
+
+    return await get_data_by_filter(db, Trip, filters=filters, is_first=False,
+                            options=[
+                                selectinload(Trip.driver),
+                                selectinload(Trip.bus),
+                                selectinload(Trip.route).options(selectinload(Route.stops).options(selectinload(RouteStop.stop)))
+                            ])
+
 
 async def get_trip_details(db, trip_id):
     return await get_data_by_filter(db, Trip, filters=[Trip.id == trip_id], options=[selectinload(Trip.driver)])

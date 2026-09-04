@@ -33,9 +33,6 @@ async def trip_websocket(websocket:WebSocket, trip_id:str):
     try:
         while True:
             raw = await websocket.receive_json()
-            print("ws raw:", raw)
-            
-
             try:
                 msg = StudentLocationIn.model_validate(raw)
             except ValidationError as exc:
@@ -43,27 +40,30 @@ async def trip_websocket(websocket:WebSocket, trip_id:str):
                     websocket, WSError(message=str(exc)).model_dump(mode="json")
                 )
                 continue
-            bus_location = manager.get_last_bus_location(trip_id)
-            if bus_location is None:
-                await manager.send_to(
-                    websocket,
-                    WSError(message="No bus location yet for this trip").model_dump(mode="json"),
-                )
-                continue
-            distance_m = haversine_distance_m(
-                msg.lat, msg.lng, bus_location.lat, bus_location.lng
+            await manager.update_student_location(
+                trip_id, websocket, msg.lat, msg.lng, datetime.now(tz=timezone.utc)
             )
+            # bus_location = manager.get_last_bus_location(trip_id)
+            # if bus_location is None:
+            #     await manager.send_to(
+            #         websocket,
+            #         WSError(message="No bus location yet for this trip").model_dump(mode="json"),
+            #     )
+            #     continue
+            # distance_m = haversine_distance_m(
+            #     msg.lat, msg.lng, bus_location.lat, bus_location.lng
+            # )
 
-            eta = estimate_eta_seconds(distance_m, bus_location.speed_kmh)
-            update = DistanceUpdate(
-                type="distance_update",
-                trip_id=trip_id,
-                distance_meters=round(distance_m, 1),
-                eta_seconds=round(eta, 1) if eta is not None else None,
-                bus_timestamp=bus_location.timestamp,
-                student_timestamp=datetime.now(tz=timezone.utc),
-            )
-            await manager.send_to(websocket, update.model_dump(mode="json"))
+            # eta = estimate_eta_seconds(distance_m, bus_location.speed_kmh)
+            # update = DistanceUpdate(
+            #     type="distance_update",
+            #     trip_id=trip_id,
+            #     distance_meters=round(distance_m, 1),
+            #     eta_seconds=round(eta, 1) if eta is not None else None,
+            #     bus_timestamp=bus_location.timestamp,
+            #     student_timestamp=datetime.now(tz=timezone.utc),
+            # )
+            # await manager.send_to(websocket, update.model_dump(mode="json"))
     except WebSocketDisconnect:
         manager.disconnect(trip_id, websocket)
     except Exception:
