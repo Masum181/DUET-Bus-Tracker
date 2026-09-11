@@ -9,7 +9,7 @@ from app.enums.user_enums import UserRole
 class User(BaseModel):
     name:str 
     email:str
-    password:str
+    password:str = Field(default=..., description='Password of the user', min_length=8)
     mobile: str
     dob:date
     gender:str

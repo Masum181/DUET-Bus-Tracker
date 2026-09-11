@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, WebSocket
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
@@ -24,15 +24,83 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/login')
 fernet = Fernet(settings.ENCRYPTION_KEY)
 
 
-# def get_current_user(token: str= Depends(oauth2_scheme)):
-#     credential_exception = HTTPException(
-#         status_code=status.HTTP_401_UNAUTHORIZED, 
-#         detail='Could not validate credentials',
-#         headers={"WWW-Authenticate": "Bearer"}
-#     )
-#     return access_token.verify_token(token, credential_exception)
+
     
 # oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
+
+async def get_current_user_ws(
+    websocket: WebSocket,
+    db: Session = Depends(get_db),
+) -> user_models.User:
+
+    authorization = websocket.headers.get("authorization")
+
+    if not authorization:
+        await websocket.close(code=1008)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authorization header missing",
+        )
+    
+
+    try:
+        scheme, token = authorization.split(" ", 1)
+
+        if scheme.lower() != "bearer":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authorization header must start with Bearer",
+            )
+        
+        decrypt_token = fernet.decrypt(token.encode()).decode()
+
+
+        payload = jwt.decode(
+            decrypt_token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM]
+        )
+        user = payload.get("user")
+
+        if user.get("role").lower() != "student":
+            await websocket.close(code=1008)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User should be student to access this websocket",
+            )
+        
+        if not user:
+            await websocket.close(code=1008)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+            )
+
+        email = user.get("email")
+        user_id = int(user.get("user_uid"))
+
+    except (JWTError, ValueError, TypeError):
+        await websocket.close(code=1008)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+        )
+
+    current_user = await get_user(
+        db,
+        email=email,
+        user_id=user_id
+    )
+
+    if not current_user:
+        await websocket.close(code=1008)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User not found with id {user_id}"
+        )
+
+    return current_user
+
 
 async def get_current_user(
         token: str = Depends(oauth2_scheme),

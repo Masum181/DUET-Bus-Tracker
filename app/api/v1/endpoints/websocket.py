@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import TypeAdapter, ValidationError
 from datetime import datetime, timezone
 
-from app.core.outh2 import get_current_user, require_role
+from app.core.outh2 import get_current_user, require_role, get_current_user_ws
 from app.schemas.user import User
 from app.schemas.student import StudentWebSocketSchema
 
@@ -25,11 +25,9 @@ router = APIRouter(
 )
 
 @router.websocket("/trip/{trip_id}")
-async def trip_websocket(websocket:WebSocket, trip_id:str):
-    # await manager.connect(trip_id, user.id, websocket)
-    await manager.connect(trip_id, 1, websocket)
-
-    
+async def trip_websocket(websocket:WebSocket, trip_id:str, user: Annotated[User, Depends(get_current_user_ws)]):
+    await manager.connect(trip_id, user.id, websocket)
+    # await manager.connect(trip_id, 1, websocket)
     try:
         while True:
             raw = await websocket.receive_json()
@@ -40,6 +38,8 @@ async def trip_websocket(websocket:WebSocket, trip_id:str):
                     websocket, WSError(message=str(exc)).model_dump(mode="json")
                 )
                 continue
+            print(f"Update student location: lat={msg.lat}, lng={msg.lng} for trip {trip_id}")
+            
             await manager.update_student_location(
                 trip_id, websocket, msg.lat, msg.lng, datetime.now(tz=timezone.utc)
             )
@@ -69,64 +69,3 @@ async def trip_websocket(websocket:WebSocket, trip_id:str):
     except Exception:
         logging.exception("Unexpected error on trip %s websocket", trip_id)
 
-# @router.websocket("/buses/{bus_id}")
-# async def bus_tracking(websocket:WebSocket, bus_id:int):
-#     await manager.connect(bus_id, websocket)
-
-#     try:
-#         while True:
-#             await websocket.receive_text()
-#     except WebSocketDisconnect:
-#         manager.disconnect(bus_id, websocket)
-
-
-
-# @router.websocket("/student")
-# async def student_socket(
-#     websocket:WebSocket, 
-#     student: Annotated[User, Depends(get_current_user)]
-# ):
-#     service = StudentService()
-#     service.connect(
-#         websocket=websocket,
-#         student=student
-#     )
-
-#     try:
-#         while True:
-#             message = websocket.receive_json()
-#             try:
-#                 payload = adapter.validate_python(message)
-#             except ValidationError as e:
-
-#                 await websocket.send_json(
-#                     {
-#                         "event": "error",
-#                         "message": e.errors(),
-#                     }
-#                 )
-
-#                 continue
-
-#             # await manager.handle_student_message(
-#             #     websocket=websocket,
-#             #     student=student,
-#             #     message=message,
-#             # )
-
-#             await service.handle_message(
-#                 websocket=websocket,
-#                 student=student, 
-#                 payload=payload
-#             )
-
-#     except WebSocketDisconnect:
-
-#         await service.disconnect(websocket)
-
-#     except:
-
-#         # await manager.disconnect(websocket)
-#         await service.disconnect(websocket)
-
-#         raise

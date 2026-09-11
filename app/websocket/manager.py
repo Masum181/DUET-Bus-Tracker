@@ -62,10 +62,12 @@ class ConnectionManager:
         async with room.lock:
             targets = list(room.connections.items())
         dead:list[WebSocket] = []
+        print("length: ", len(targets))
         for ws, state in targets:
+            print(f"broadcasting to student {state.student_id}, lat={state.lat}, lng={state.lng}")
             try:
                 # await ws.send_json(message)
-                await self.send_update(
+                await self._send_update(
                     ws, trip_id, message, state.lat, state.lng, state.timestamp
                 )
             except Exception:
@@ -91,7 +93,8 @@ class ConnectionManager:
         if state is None:
             return False
         state.lat, state.lng, state.timestamp = lat, lng, timestamp
- 
+        print(f"Updated student {state.student_id} location: lat={lat}, lng={lng}, timestamp={timestamp}")
+        
         if room.last_bus_location is None:
             await self.send_error(websocket, "No bus location yet for this trip")
             return False
@@ -108,11 +111,16 @@ class ConnectionManager:
         student_lng: float | None,
         student_timestamp: datetime | None,
     ) -> None:
+        
         distance_m = eta = None
+        print(f"sending update: lat={student_lat}, lng={student_lng}")
+
         if student_lat is not None and student_lng is not None:
             distance_m = round(haversine_distance_m(student_lat, student_lng, location.lat, location.lng), 1)
             eta = estimate_eta_seconds(distance_m, location.speed_kmh)
             eta = round(eta, 1) if eta is not None else None
+
+        print(f"distance_m={distance_m}, eta={eta}, bus_timestamp={location.timestamp}, student_timestamp={student_timestamp}")
         update = DistanceUpdate(
             trip_id=trip_id,
             bus_id=location.bus_id,

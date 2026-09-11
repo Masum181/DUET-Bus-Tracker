@@ -1,3 +1,5 @@
+import re
+
 from app.repositories import user_repositories
 
 
@@ -32,6 +34,18 @@ def _get_update_data(schema):
     }
 
 async def create_new_user(db, payload):
+    if payload.password is None or len(payload.password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 8 characters long"
+        )
+    if not re.search(r"[A-Za-z]", payload.password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must contain at least one letter"
+        )
+    
+    
     user = await user_repositories.get_user(db, email=payload.email)
     if user:
         raise HTTPException(
@@ -47,6 +61,7 @@ async def create_new_user(db, payload):
         "gender":payload.gender,
         "role":payload.role
     }
+
     new_user = await user_repositories.create_user(db, data)
 
     return ResponseUser(

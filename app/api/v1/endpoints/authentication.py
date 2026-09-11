@@ -56,13 +56,15 @@ async def login(
     access_token, _ = create_access_token(
         data={
             'email': user.email,
-            'user_uid': str(user.id)
+            'user_uid': str(user.id),
+            "role":user.role
         }
     )
     refresh_token, expire = create_access_token(
         data={
             'email': user.email,
-            'user_uid': str(user.id)
+            'user_uid': str(user.id),
+            "role":user.role
         },
         refresh=True,
         expiry=timedelta(days=REFRESH_TOKEN_EXPIRY)
