@@ -86,3 +86,21 @@ async def end_trip(db, payload, user_id):
 
     return _response(status_code=status.HTTP_200_OK, success=True, message="Trip ended successfully.")
 
+
+async def route_list(db, search):
+    routes, total = await driver_repositories.get_routes(db, search)
+    data = [
+            {'id': route.id, 'name': route.name, 'code': route.code, 'description': route.description, 'is_active': route.is_active} 
+            for route in routes
+        ]
+    
+    return _response(status_code=status.HTTP_200_OK, success=True, message="Routes retrieved successfully.", data={"data": data, "total": total})
+    
+async def bus_list(db, search):
+        buses, total = await driver_repositories.get_buses(db, search)
+        data = [
+            {'id': bus.id, 'name': bus.name, 'registration_number': bus.registration_number, 'capacity': bus.capacity, 'route_id': bus.route_id, 'is_active': bus.is_active} 
+            for bus in buses
+        ]
+        
+        return _response(status_code=status.HTTP_200_OK, success=True, message="Buses retrieved successfully.", data={"data": data, "total": total})

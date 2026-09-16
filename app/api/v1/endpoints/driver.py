@@ -71,9 +71,17 @@ async def herartbeat(payload: DriverStatusSchema, db: Annotated[AsyncSession, De
     }
 
 @router.post("/trips/end", status_code=200)
-async def ending_trip(payload: DriverTripEndSchema, db: Annotated[AsyncSession, Depends(get_db)]):
+async def ending_trip(payload: DriverTripEndSchema, db: Annotated[AsyncSession, Depends(get_db)], user: Annotated[User, Depends(get_current_user)], _: Annotated[User, Depends(require_role("driver"))],):
     # Check if user is driver
     # Check if trip is started
     # Update live location
     # Broadcast WebSocket
     return  await driver_services.end_trip(db, payload)
+
+@router.get("/list-routes")
+async def route_list(search:Annotated[str, Depends], db: Annotated[AsyncSession, Depends(get_db)], user: Annotated[User, Depends(get_current_user)], _: Annotated[User, Depends(require_role("driver"))],):
+    return await driver_services.route_list(db, search)
+
+@router.get("/list-buses")
+async def bus_list(search:Annotated[str, Depends], db: Annotated[AsyncSession, Depends(get_db)], user: Annotated[User, Depends(get_current_user)], _: Annotated[User, Depends(require_role("driver"))],):
+    return await driver_services.bus_list(db, search)

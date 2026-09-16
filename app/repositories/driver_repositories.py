@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.repositories.base_repo import BaseGeneric, get_data_by_filter, add_data, base_update, base_bulk_update_many
-from app.models.buses import Trip, Route
+from app.models.buses import Trip, Route, Bus
 from app.models.user import DriverInfo
 
 async def get_trip(db, bus_id):
@@ -17,3 +17,9 @@ async def create_trip(db, data): return await add_data(db, Trip, data)
 async def get_route(db, route_id): return await get_data_by_filter(db, Route, filters=[Route.id == route_id])
 
 async def get_driver(db, user_id): return await get_data_by_filter(db, DriverInfo, filters=[DriverInfo.user_id == user_id])
+
+async def get_routes(db, search):
+    return await get_data_by_filter(db, Route,is_first=False, filters=[Route.name.like(f"%{search}%")], order_by=[Route.created_at.desc()])
+
+async def get_buses(db, search):
+    return await get_data_by_filter(db, Bus,is_first=False, filters=[Bus.name.like(f"%{search}%")], order_by=[Bus.created_at.desc()])
