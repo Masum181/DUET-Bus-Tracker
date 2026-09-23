@@ -19,6 +19,16 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 register_exception_handlers(app)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://your-flutter-domain.com",
+        "http://localhost:5000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(api_router, prefix="/api/v1")
 # register_middleware(app)
