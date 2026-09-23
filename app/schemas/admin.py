@@ -53,6 +53,7 @@ class StopCreateSchema(BaseModel):
 class StopListFileterSchema(BaseModel):
     route_id: int | None = Field(None, description="Route id")
     is_active: bool = Field(True, description="Stop active or not")
+    search: str|None = Field(None, description="Search")
 
     sort_by: str = Field(None, description="Sort by")
     sort_order: str = Field(None, description="Sort order")

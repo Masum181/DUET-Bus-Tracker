@@ -99,6 +99,8 @@ async def get_stops(db, payload):
     
     if payload.is_active is not None:
         query = query.where(Stop.is_active == payload.is_active)
+    if payload.search is not None:
+        query = query.where(func.lower(Stop.name).contains(func.lower(payload.search)))
 
     count_query = (
         select(func.count(func.distinct(Stop.id)))
